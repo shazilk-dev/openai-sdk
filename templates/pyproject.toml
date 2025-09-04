@@ -1,0 +1,20 @@
+[project]
+name = "templates"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "ShazilK47", email = "shazil.akn@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "openai-agents>=0.2.11",
+    "python-dotenv>=1.1.1",
+]
+
+[project.scripts]
+templates = "templates:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
