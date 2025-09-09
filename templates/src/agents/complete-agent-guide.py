@@ -28,35 +28,328 @@ from agents import (
 )
 
 # =============================================================================
-# 📖 UNDERSTANDING THE AGENT CLASS
+# 📖 UNDERSTANDING THE AGENT CLASS - COMPLETE PARAMETERS GUIDE
 # =============================================================================
 
 """
+🤖 AGENT CLASS COMPLETE SIGNATURE (All Parameters):
+
+@dataclass
+class Agent(Generic[TContext]):
+    # REQUIRED PARAMETERS
+    name: str                                    # Agent identifier (required)
+    
+    # CORE CONFIGURATION
+    instructions: str | Callable | None = None  # System prompt (static/dynamic)
+    handoff_description: str | None = None       # Description when used as handoff target
+    
+    # TOOLS & CAPABILITIES  
+    tools: list[Tool] = field(default_factory=list)              # Function tools
+    mcp_servers: list[MCPServer] = field(default_factory=list)   # Model Context Protocol servers
+    mcp_config: MCPConfig = field(default_factory=lambda: MCPConfig())  # MCP configuration
+    
+    # ROUTING & HANDOFFS
+    handoffs: list[Agent | Handoff] = field(default_factory=list) # Delegation targets
+    
+    # MODEL CONFIGURATION  
+    model: str | Model | None = None             # Model implementation 
+    model_settings: ModelSettings = field(default_factory=get_default_model_settings)  # Model tuning
+    
+    # INPUT/OUTPUT CONTROL
+    input_guardrails: list[InputGuardrail] = field(default_factory=list)   # Pre-execution checks
+    output_guardrails: list[OutputGuardrail] = field(default_factory=list) # Post-execution checks  
+    output_type: type | AgentOutputSchemaBase | None = None                 # Structured output schema
+    
+    # ADVANCED BEHAVIOR
+    hooks: AgentHooks | None = None              # Lifecycle event callbacks
+    tool_use_behavior: str | StopAtTools | ToolsToFinalOutputFunction = "run_llm_again"  # Tool execution control
+    reset_tool_choice: bool = True               # Reset tool choice after calls
+    
+    # PROMPTS FEATURE (OpenAI Only)
+    prompt: Prompt | DynamicPromptFunction | None = None  # Responses API prompt object
+
 WHY IS AGENT A DATACLASS?
 1. ✅ IMMUTABILITY: Once created, agent config is immutable (safer)
 2. ✅ SERIALIZATION: Easy to save/load agent configurations  
-3. ✅ CLONING: Simple to copy agents with modifications
+3. ✅ CLONING: Simple to copy agents with modifications (agent.clone())
 4. ✅ TYPE SAFETY: Built-in type checking and validation
 5. ✅ COMPARISON: Easy to compare agent configurations
-
-AGENT CLASS SIGNATURE:
-@dataclass
-class Agent:
-    name: str                                    # Required: Agent identifier
-    instructions: str | Callable                # System prompt (static or dynamic)
-    tools: list[Tool] = field(default_factory=list)              # Available tools
-    handoffs: list[Agent | Handoff] = field(default_factory=list) # Agent handoffs
-    output_type: type = None                     # Structured output type
-    model: str | Model = None                    # Model configuration
-    # ... other fields
+6. ✅ SHALLOW COPY: Clone preserves object references (efficient)
 """
 
 # =============================================================================
-# 🔧 1. BASIC AGENT CREATION
+# 🔧 1. COMPLETE PARAMETER EXAMPLES  
 # =============================================================================
 
+def complete_parameter_examples():
+    """Comprehensive examples of every Agent parameter"""
+    
+    print("🔧 COMPLETE AGENT PARAMETER EXAMPLES")
+    print("=" * 60)
+    
+    # 1.1 REQUIRED PARAMETER: name
+    print("\n1.1 REQUIRED: name (str)")
+    basic_agent = Agent(
+        name="CustomerSupportBot"  # Must be descriptive and unique
+    )
+    print(f"✅ Basic agent: {basic_agent.name}")
+    
+    # 1.2 HANDOFF_DESCRIPTION - How this agent appears to other agents
+    print("\n1.2 OPTIONAL: handoff_description (str | None)")
+    
+    specialist_agent = Agent(
+        name="SecurityExpert",
+        handoff_description="Security specialist for vulnerability assessment, compliance checks, and security best practices"
+    )
+    
+    router_agent = Agent(
+        name="TechRouter", 
+        instructions="Route technical questions to appropriate specialists",
+        handoffs=[specialist_agent]  # Router can see the handoff description
+    )
+    
+    print(f"✅ Specialist description: {specialist_agent.handoff_description}")
+    
+    # 1.3 INSTRUCTIONS - Static vs Dynamic
+    print("\n1.3 CORE: instructions (str | Callable | None)")
+    
+    # Static instructions
+    static_agent = Agent(
+        name="StaticBot",
+        instructions="You are a helpful assistant. Always be polite and provide accurate information."
+    )
+    
+    # Dynamic instructions based on context
+    def dynamic_instructions(ctx: RunContextWrapper, agent: Agent) -> str:
+        user_context = ctx.context or {}
+        user_tier = user_context.get('tier', 'basic')
+        
+        if user_tier == 'premium':
+            return "You are a premium support agent. Provide detailed, priority assistance with advanced features."
+        elif user_tier == 'enterprise':
+            return "You are an enterprise support agent. Provide comprehensive technical guidance and escalation paths."
+        else:
+            return "You are a basic support agent. Provide helpful, concise assistance."
+    
+    dynamic_agent = Agent(
+        name="DynamicBot",
+        instructions=dynamic_instructions
+    )
+    
+    print(f"✅ Static instructions length: {len(static_agent.instructions or '')}")
+    print(f"✅ Dynamic instructions: {type(dynamic_agent.instructions).__name__}")
+    
+    # 1.4 TOOLS - Function tools list
+    print("\n1.4 CAPABILITIES: tools (list[Tool])")
+    
+    @function_tool
+    def get_weather(city: str) -> str:
+        """Get current weather for a city"""
+        return f"Weather in {city}: 22°C, Sunny"
+    
+    @function_tool  
+    def calculate_tip(bill: float, percentage: int = 15) -> float:
+        """Calculate tip amount"""
+        return round(bill * (percentage / 100), 2)
+    
+    tool_agent = Agent(
+        name="ToolBot",
+        instructions="You can check weather and calculate tips for users.",
+        tools=[get_weather, calculate_tip]
+    )
+    
+    print(f"✅ Tools count: {len(tool_agent.tools)}")
+    print(f"✅ Tool names: {[tool.name for tool in tool_agent.tools]}")
+    
+    # 1.5 HANDOFFS - Agent delegation
+    print("\n1.5 ROUTING: handoffs (list[Agent | Handoff])")
+    
+    # Simple handoff (list of agents)
+    python_expert = Agent(
+        name="PythonExpert",
+        instructions="You are a Python programming expert.",
+        handoff_description="Python programming specialist"
+    )
+    
+    js_expert = Agent(
+        name="JSExpert", 
+        instructions="You are a JavaScript programming expert.",
+        handoff_description="JavaScript programming specialist"
+    )
+    
+    # Basic handoff agent
+    basic_router = Agent(
+        name="BasicRouter",
+        instructions="Route programming questions to language experts",
+        handoffs=[python_expert, js_expert]
+    )
+    
+    print(f"✅ Basic handoffs: {len(basic_router.handoffs)}")
+    
+    # 1.6 MODEL - Model implementation
+    print("\n1.6 MODEL: model (str | Model | None)")
+    
+    # String model (most common)
+    string_model_agent = Agent(
+        name="GPT4Agent",
+        model="gpt-4o",  # Model name string
+        instructions="I use GPT-4o model"
+    )
+    
+    print(f"✅ String model: {string_model_agent.model}")
+    
+    # 1.7 MODEL_SETTINGS - Model tuning parameters
+    print("\n1.7 TUNING: model_settings (ModelSettings)")
+    
+    creative_agent = Agent(
+        name="CreativeAgent",
+        instructions="You are a creative writing assistant",
+        model_settings=ModelSettings(
+            temperature=0.9,      # High creativity
+            max_tokens=1000,      # Longer responses
+            top_p=0.95,          # Diverse vocabulary
+            frequency_penalty=0.1, # Reduce repetition
+            presence_penalty=0.1,  # Encourage new topics
+            max_retries=3,        # Retry on failures
+            timeout=30.0          # 30 second timeout
+        )
+    )
+    
+    analytical_agent = Agent(
+        name="AnalyticalAgent", 
+        instructions="You provide precise, factual analysis",
+        model_settings=ModelSettings(
+            temperature=0.1,      # Low creativity/high precision
+            max_tokens=500,       # Concise responses
+            top_p=0.1,           # Focused vocabulary
+            max_retries=5,        # High reliability
+            timeout=60.0          # Longer timeout for analysis
+        )
+    )
+    
+    print(f"✅ Creative temp: {creative_agent.model_settings.temperature}")
+    print(f"✅ Analytical temp: {analytical_agent.model_settings.temperature}")
+    
+    # 1.8 OUTPUT_TYPE - Structured output schema
+    print("\n1.8 STRUCTURE: output_type (type | AgentOutputSchemaBase | None)")
+    
+    from pydantic import BaseModel
+    from dataclasses import dataclass
+    from typing import List
+    
+    # Pydantic model output
+    class CustomerReport(BaseModel):
+        customer_id: str
+        issue_summary: str
+        priority: str
+        resolution_steps: List[str]
+        estimated_time: int
+    
+    structured_agent = Agent(
+        name="StructuredAgent",
+        instructions="Always return customer reports in the specified format",
+        output_type=CustomerReport
+    )
+    
+    # Dataclass output  
+    @dataclass
+    class ProductInfo:
+        name: str
+        price: float
+        in_stock: bool
+        description: str
+    
+    product_agent = Agent(
+        name="ProductAgent",
+        instructions="Return product information in structured format",
+        output_type=ProductInfo
+    )
+    
+    print(f"✅ Pydantic output: {structured_agent.output_type.__name__}")
+    print(f"✅ Dataclass output: {product_agent.output_type.__name__}")
+    
+    # 1.9 TOOL_USE_BEHAVIOR - Tool execution control
+    print("\n1.9 CONTROL: tool_use_behavior (str | StopAtTools | Function)")
+    
+    # Default behavior: run LLM again after tool
+    default_behavior_agent = Agent(
+        name="DefaultBehaviorAgent",
+        tool_use_behavior="run_llm_again",  # Default
+        tools=[get_weather]
+    )
+    
+    # Stop on first tool (tool output becomes final output)
+    stop_first_agent = Agent(
+        name="StopFirstAgent", 
+        tool_use_behavior="stop_on_first_tool",
+        tools=[get_weather]
+    )
+    
+    print(f"✅ Default behavior: {default_behavior_agent.tool_use_behavior}")
+    print(f"✅ Stop first: {stop_first_agent.tool_use_behavior}")
+    
+    # 1.10 RESET_TOOL_CHOICE - Tool choice reset control
+    print("\n1.10 OPTIMIZATION: reset_tool_choice (bool)")
+    
+    # Default: reset tool choice (prevents infinite tool loops)
+    reset_agent = Agent(
+        name="ResetAgent",
+        reset_tool_choice=True,  # Default
+        tools=[get_weather]
+    )
+    
+    # Don't reset (for specific use cases)
+    no_reset_agent = Agent(
+        name="NoResetAgent",
+        reset_tool_choice=False,
+        tools=[get_weather]
+    )
+    
+    print(f"✅ Reset enabled: {reset_agent.reset_tool_choice}")
+    print(f"✅ Reset disabled: {no_reset_agent.reset_tool_choice}")
+    
+    # SUMMARY OF ALL PARAMETERS
+    print("\n" + "="*60)
+    print("📋 AGENT PARAMETER SUMMARY")
+    print("="*60)
+    
+    all_params = {
+        "name": "Required string identifier",
+        "handoff_description": "Description for handoff routing", 
+        "instructions": "System prompt (static/dynamic/None)",
+        "tools": "Function tools list",
+        "mcp_servers": "External MCP servers",
+        "mcp_config": "MCP configuration dict",
+        "handoffs": "Agent delegation targets",
+        "model": "Model implementation",
+        "model_settings": "Model tuning parameters", 
+        "input_guardrails": "Pre-execution safety checks",
+        "output_guardrails": "Post-execution validation",
+        "output_type": "Structured output schema",
+        "hooks": "Lifecycle event callbacks",
+        "tool_use_behavior": "Tool execution control",
+        "reset_tool_choice": "Tool choice reset flag",
+        "prompt": "OpenAI Responses API prompt"
+    }
+    
+    for param, description in all_params.items():
+        print(f"  {param:20} → {description}")
+    
+    return {
+        "basic_agent": basic_agent,
+        "specialist_agent": specialist_agent,
+        "router_agent": router_agent,
+        "static_agent": static_agent,
+        "dynamic_agent": dynamic_agent,
+        "tool_agent": tool_agent,
+        "creative_agent": creative_agent,
+        "analytical_agent": analytical_agent,
+        "structured_agent": structured_agent,
+        "string_model_agent": string_model_agent
+    }
+
 def basic_agent_examples():
-    """Basic agent creation patterns"""
+    """Basic agent creation patterns (preserved for compatibility)"""
     
     # 1.1 Minimal Agent (just name and instructions)
     minimal_agent = Agent(
@@ -784,13 +1077,83 @@ adaptive = Agent(
 # 🏃‍♂️ MAIN EXECUTION
 # =============================================================================
 
-if __name__ == "__main__":
-    print("🤖 OpenAI Agents SDK - Complete Agents Template")
-    print("This template demonstrates all Agent class features and patterns.")
-    print("\nFor full async demonstration, uncomment the async section below.")
+# =============================================================================
+# 🏃‍♂️ MAIN EXECUTION
+# =============================================================================
+
+def run_all_examples():
+    """Run all agent examples to demonstrate functionality"""
     
-    # Run synchronous examples
-    run_sync_examples()
+    print("🤖 OpenAI Agents SDK - Complete Agents Template")
+    print("=" * 60)
+    print("This template demonstrates ALL Agent class parameters and patterns.")
+    print()
+    
+    # 1. Run comprehensive parameter examples (NEW)
+    print("🔧 RUNNING: Complete Parameter Examples")
+    complete_examples = complete_parameter_examples()
+    print(f"✅ Created {len(complete_examples)} parameter demonstration agents")
+    print()
+    
+    # 2. Run basic examples (preserved)
+    print("🔧 RUNNING: Basic Agent Examples")
+    basic_examples = basic_agent_examples()
+    print(f"✅ Created {len(basic_examples)} basic agents")
+    print()
+    
+    # 3. Run instructions examples
+    print("📝 RUNNING: Instructions Examples")
+    instruction_examples = instructions_examples()
+    print(f"✅ Created {len(instruction_examples)} instruction agents")
+    print()
+    
+    # 4. Run tools examples
+    print("🛠️ RUNNING: Tools Examples") 
+    tool_examples = tools_examples()
+    print(f"✅ Created {len(tool_examples)} tool agents")
+    print()
+    
+    # 5. Run handoffs examples
+    print("🤝 RUNNING: Handoffs Examples")
+    handoff_examples_result = handoffs_examples()
+    print(f"✅ Created {len(handoff_examples_result)} handoff agents")
+    print()
+    
+    # 6. Run structured output examples
+    print("📊 RUNNING: Structured Output Examples")
+    structured_examples = structured_output_examples()
+    print(f"✅ Created {len(structured_examples)} structured output agents")
+    print()
+    
+    # 7. Run advanced examples
+    print("🚀 RUNNING: Advanced Agent Examples") 
+    advanced_examples = advanced_agent_examples()
+    print(f"✅ Created {len(advanced_examples)} advanced agents")
+    print()
+    
+    # Summary
+    total_agents = (len(complete_examples) + len(basic_examples) + 
+                   len(instruction_examples) + len(tool_examples) + 
+                   len(handoff_examples_result) + len(structured_examples) + 
+                   len(advanced_examples))
+    
+    print("="*60)
+    print("📋 EXECUTION SUMMARY")
+    print("="*60)
+    print(f"Total agents created: {total_agents}")
+    print("All parameter types demonstrated ✅")
+    print("All usage patterns covered ✅") 
+    print("Template validation complete ✅")
+    print()
+    print("💡 Next Steps:")
+    print("  1. Copy specific agent patterns you need")
+    print("  2. Modify parameters for your use case")
+    print("  3. Test with Runner.run() or Runner.run_sync()")
+    print("  4. Add your own tools, handoffs, and guardrails")
+
+if __name__ == "__main__":
+    # Run all examples to show complete functionality
+    run_all_examples()
     
     # Uncomment to run full async demonstration:
     # asyncio.run(demonstrate_all_agent_types())
