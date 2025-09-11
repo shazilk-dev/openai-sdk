@@ -5,16 +5,22 @@ from pydantic import BaseModel
 
 enable_verbose_stdout_logging()
 
-def log_handoff_event(ctx: RunContextWrapper):
-    print(f"HANDOFF INITIATED: Transferring to the Escalation Agent by {ctx.context.user_name}")
 
 class UserContext(BaseModel):
         user_id: str
         user_name: str
 
+class LearningTopic(BaseModel):
+        topic: str
+        is_related_to_python: bool
+
+def log_handoff_event(ctx: RunContextWrapper, input_data: LearningTopic):
+    print(f"HANDOFF INITIATED: Transferring to the {input_data.topic} Agent by {ctx.context.user_name}")
+
+
 sir_Ameen = Agent(
     name="Python Teacher",
-    instructions="You are a python professor. you need to give 2 important points for learning python",
+    instructions="You are a python professor. you need to give 2 important points for learning python if user ask about python",
     handoff_description="use this agent for python query",
     
 )
@@ -30,6 +36,7 @@ custom_handoff = handoff(
     tool_name_override="escalate_to_python_specialist",
     tool_description_override="Use this for python issues.",
     on_handoff=log_handoff_event,
+    input_type=LearningTopic
 )
 
 sir_zia = Agent[UserContext](
@@ -45,7 +52,7 @@ user = UserContext(user_id="abc", user_name="Shazil")
 
 
 async def main():
-    result = await Runner.run(sir_zia, "give me  short tips about learning python", run_config=config, context=user)
+    result = await Runner.run(sir_zia, "give me short tips about learning python", run_config=config, context=user)
     print(result.final_output)
 
 
