@@ -1,5 +1,6 @@
 from agents import Agent, AgentHooks, RunContextWrapper
 from typing import Any
+import rich
 class TestAgHooks(AgentHooks):
     def __init__(self, ag_display_name):
         self.event_counter = 0
@@ -7,21 +8,21 @@ class TestAgHooks(AgentHooks):
 
     async def on_start(self, context: RunContextWrapper, agent: Agent) -> None:
         self.event_counter += 1
-        print(f"\n --- {self.ag_display_name} : {self.event_counter}: \n Agent {agent.name} started. \n Usage: {context.usage}")
-        print(f"🕘 Agent \"{agent.name}\" is now in charge of handling the task")
+        rich.print(f"\n --- {self.ag_display_name} : {self.event_counter}: \n Agent {agent.name} started. \n Usage: {context.usage}")
+        rich.print(f"🕘 Agent \"{agent.name}\" is now in charge of handling the task")
 
 
     async def on_end(self, context: RunContextWrapper, agent: Agent, output: Any) -> None:
         self.event_counter += 1
-        print(f"\n\n --- \"{self.ag_display_name}\" : {self.event_counter}: \n Agent {agent.name} ended.\n Usage: {context.usage}, \nOutput: {output}")
+        rich.print(f"\n\n --- \"{self.ag_display_name}\" : {self.event_counter}: \n Agent {agent.name} ended.\n Usage: {context.usage}, \nOutput: {output}")
 
     async def on_llm_start(self, context, agent, system_prompt, input_items):
         self.event_counter += 1
-        print(f"\n\n --- 📞 \"{self.ag_display_name}\" : {self.event_counter}:\n Agent {agent.name} is asking the AI for help with: \n {input_items}")
+        rich.print(f"\n\n --- 📞 \"{self.ag_display_name}\" : {self.event_counter}:\n Agent {agent.name} is asking the AI for help with: \n {input_items}")
 
     async def on_llm_end(self, context, agent, response):
         self.event_counter += 1
-        print(f"\n\n --- \"{self.ag_display_name}\" : {self.event_counter}: \n 🧠✨ Agent {agent.name} got AI response: \n {response}")
+        rich.print(f"\n\n --- \"{self.ag_display_name}\" : {self.event_counter}: \n 🧠✨ Agent {agent.name} got AI response: \n {response}")
 
     async def on_tool_start(self, context, agent, tool):
         self.event_counter += 1
